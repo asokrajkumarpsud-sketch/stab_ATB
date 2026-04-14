@@ -1,142 +1,275 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-    <title>Stabilité ATB</title>
+<title>Stabilité ATB</title>
 
-    <link rel="manifest" href="./manifest.json">
-    <link rel="icon" href="./icon-192.png">
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#0b5ed7">
 
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            margin: 0;
-            padding: 15px;
-            background: #f5f7fa;
-        }
+<style>
 
-        h1 {
-            text-align: center;
-            color: #2c7be5;
-        }
+body{
+font-family: -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto;
+margin:0;
+background:#f5f6fa;
+}
 
-        .card {
-            background: white;
-            padding: 15px;
-            border-radius: 10px;
-            box-shadow: 0 2px 6px rgba(0,0,0,0.1);
-            margin-bottom: 20px;
-        }
+.header{
+background:#0b5ed7;
+color:white;
+padding:18px;
+font-size:20px;
+font-weight:bold;
+text-align:center;
+}
 
-        label {
-            font-weight: bold;
-        }
+.update{
+display:none;
+background:#ff9800;
+color:white;
+text-align:center;
+padding:10px;
+font-weight:600;
+cursor:pointer;
+}
 
-        select, input {
-            width: 100%;
-            padding: 10px;
-            margin-top: 5px;
-            margin-bottom: 15px;
-            border-radius: 6px;
-            border: 1px solid #ccc;
-        }
+.container{
+padding:15px;
+}
 
-        #result {
-            background: #e9f3ff;
-            padding: 15px;
-            border-radius: 10px;
-            border-left: 4px solid #2c7be5;
-            display: none;
-        }
-    </style>
+.card{
+background:white;
+padding:15px;
+border-radius:12px;
+box-shadow:0 2px 8px rgba(0,0,0,0.08);
+margin-bottom:15px;
+}
+
+label{
+font-weight:600;
+display:block;
+margin-bottom:5px;
+}
+
+select,input{
+width:100%;
+padding:12px;
+border-radius:8px;
+border:1px solid #ddd;
+font-size:16px;
+margin-bottom:15px;
+}
+
+button{
+width:100%;
+padding:14px;
+background:#0b5ed7;
+color:white;
+border:none;
+border-radius:10px;
+font-size:16px;
+font-weight:600;
+margin-bottom:15px;
+}
+
+.result-card{
+background:white;
+border-radius:12px;
+padding:15px;
+margin-bottom:12px;
+box-shadow:0 2px 8px rgba(0,0,0,0.06);
+}
+
+.result-title{
+font-weight:700;
+font-size:16px;
+margin-bottom:10px;
+}
+
+.row{
+display:flex;
+justify-content:space-between;
+margin-bottom:6px;
+}
+
+.badge{
+padding:4px 8px;
+border-radius:6px;
+font-size:12px;
+font-weight:600;
+}
+
+.green{background:#e6f7ed;color:#1e7e34;}
+.orange{background:#fff4e5;color:#cc7a00;}
+.red{background:#fdeaea;color:#b02a37;}
+
+.problem{
+color:red;
+font-weight:bold;
+padding:10px;
+}
+
+.footer{
+text-align:center;
+font-size:12px;
+color:#666;
+padding:20px 10px 30px;
+}
+
+</style>
+
 </head>
-
 <body>
 
-<h1>Stabilité des Antibiotiques</h1>
-
-<div class="card">
-    <label>Molécule</label>
-    <select id="mol"></select>
-
-    <label>Solvant</label>
-    <select id="solv">
-        <option value="NaCl">NaCl</option>
-        <option value="G5">G5</option>
-    </select>
-
-    <label>Dispositif</label>
-    <select id="disp">
-        <option value="PSE">PSE</option>
-        <option value="Pompe">Pompe</option>
-    </select>
-
-    <label>Quantité (g)</label>
-    <input type="number" id="dose" step="0.1" min="0">
+<div class="header">
+Stabilité ATB perfusion continue
 </div>
 
-<div id="result"></div>
+<div id="update" class="update" onclick="updateApp()">
+Nouvelle version disponible — Appuyer pour mettre à jour
+</div>
 
-<script src="./data.js"></script>
+<div class="container">
+
+<div class="card">
+
+<label>Molécule</label>
+<select id="molecule"></select>
+
+<label>Dose journalière</label>
+<input type="number" id="dose" step="0.01" placeholder="Ex: 6">
+
+<label>Unité</label>
+<select id="unite">
+<option value="g">g/24h</option>
+<option value="mg">mg/24h</option>
+</select>
+
+<button onclick="rechercher()">Rechercher</button>
+
+<button onclick="checkUpdate()">Vérifier mise à jour</button>
+
+</div>
+
+<div id="resultats"></div>
+
+<div class="footer">
+Outil développé par <b>Asok RAJKUMAR - Pharmacien</b>
+</div>
+
+</div>
+
+<script src="data.js"></script>
 
 <script>
-document.addEventListener("DOMContentLoaded", () => {
 
-    const molSelect = document.getElementById("mol");
+let newWorker;
 
-    const uniqueMols = [...new Set(ATB_DATA.map(x => x.Mol))];
+// REGISTER SERVICE WORKER & FORCE UPDATE
+if ('serviceWorker' in navigator) {
+navigator.serviceWorker.register('service-worker.js')
+.then(reg => {
 
-    uniqueMols.forEach(m => {
-        const opt = document.createElement("option");
-        opt.value = m;
-        opt.textContent = m;
-        molSelect.appendChild(opt);
+  // force update à chaque ouverture
+  reg.update();
+
+  // écoute installation nouveau worker
+  reg.addEventListener('updatefound', () => {
+
+    newWorker = reg.installing;
+
+    newWorker.addEventListener('statechange', () => {
+
+      if(newWorker.state === 'installed') {
+        if(navigator.serviceWorker.controller){
+          document.getElementById("update").style.display = "block";
+        }
+      }
+
     });
 
-    function updateResult() {
-        const mol = molSelect.value;
-        const solv = document.getElementById("solv").value;
-        const disp = document.getElementById("disp").value;
-        const dose = parseFloat(document.getElementById("dose").value);
-        const resultDiv = document.getElementById("result");
-
-        if (isNaN(dose)) {
-            resultDiv.style.display = "none";
-            return;
-        }
-
-        const match = ATB_DATA.find(x =>
-            x.Mol === mol &&
-            x.Solv === solv &&
-            x.Disp === disp &&
-            dose >= x.Min &&
-            dose <= x.Max
-        );
-
-        resultDiv.style.display = "block";
-
-        if (!match) {
-            resultDiv.innerHTML = "<b>Aucune donnée trouvée</b>";
-            return;
-        }
-
-        resultDiv.innerHTML = `
-            <b>Dilution :</b> ${match.Dil}<br>
-            <b>Concentration :</b> ${match.Conc}<br>
-            <b>Stabilité :</b> ${match.Stab} h<br>
-            <b>Commentaire :</b> ${match.Com || "—"}
-        `;
-    }
-
-    document.querySelectorAll("select, input").forEach(el => {
-        el.addEventListener("input", updateResult);
-    });
-
-    updateResult();
+  });
 
 });
+}
+
+// bouton update
+function updateApp(){
+  if(newWorker){
+    newWorker.postMessage({ action: 'skipWaiting' });
+  }
+  location.reload();
+}
+
+// bouton vérifier update
+function checkUpdate(){
+  if(newWorker){
+    updateApp();
+  } else {
+    alert("Pas de nouvelle version détectée");
+  }
+}
+
+// INIT MOLÉCULES
+function init(){
+const molecules = [...new Set(ATB_DATA.map(d=>d.Mol))];
+const select = document.getElementById("molecule");
+molecules.forEach(m => {
+  const opt = document.createElement("option");
+  opt.value = m;
+  opt.textContent = m;
+  select.appendChild(opt);
+});
+}
+window.onload = init;
+
+// COULEUR STABILITÉ
+function couleur(stab){
+if(stab>=24) return "green";
+if(stab>=12) return "orange";
+return "red";
+}
+
+// RECHERCHE
+function rechercher(){
+const mol = document.getElementById("molecule").value;
+let dose = parseFloat(document.getElementById("dose").value);
+const unite = document.getElementById("unite").value;
+
+if(!dose) return;
+
+if(unite==="mg") dose=dose/1000;
+
+const lignes = ATB_DATA.filter(d => d.Mol===mol && dose>=d.Min && dose<=d.Max);
+
+const div = document.getElementById("resultats");
+div.innerHTML = "";
+
+if(lignes.length===0){
+  div.innerHTML = `<div class="problem">Aucune solution trouvée</div>`;
+  return;
+}
+
+lignes.forEach(l => {
+  div.innerHTML += `
+  <div class="result-card">
+    <div class="result-title">${l.Solv} — ${l.Disp}</div>
+    <div class="row"><div>Dilution</div><div>${l.Dil}</div></div>
+    <div class="row"><div>Concentration</div><div>${l.Conc}</div></div>
+    <div class="row"><div>Stabilité</div>
+      <div class="badge ${couleur(l.Stab)}">${l.Stab} h</div>
+    </div>
+    ${l.Com ? `<div class="row"><div>Note</div><div>${l.Com}</div></div>` : ""}
+  </div>
+  `;
+});
+
+}
+
 </script>
+
 </body>
 </html>
