@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>Stabilité ATB</title>
+
+    <link rel="manifest" href="./manifest.json">
+    <link rel="icon" href="./icon-192.png">
+
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 15px;
+            background: #f5f7fa;
+        }
+
+        h1 {
+            text-align: center;
+            color: #2c7be5;
+        }
+
+        .card {
+            background: white;
+            padding: 15px;
+            border-radius: 10px;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+
+        label {
+            font-weight: bold;
+        }
+
+        select, input {
+            width: 100%;
+            padding: 10px;
+            margin-top: 5px;
+            margin-bottom: 15px;
+            border-radius: 6px;
+            border: 1px solid #ccc;
+        }
+
+        #result {
+            background: #e9f3ff;
+            padding: 15px;
+            border-radius: 10px;
+            border-left: 4px solid #2c7be5;
+            display: none;
+        }
+    </style>
+</head>
+
+<body>
+
+<h1>Stabilité des Antibiotiques</h1>
+
+<div class="card">
+    <label>Molécule</label>
+    <select id="mol"></select>
+
+    <label>Solvant</label>
+    <select id="solv">
+        <option value="NaCl">NaCl</option>
+        <option value="G5">G5</option>
+    </select>
+
+    <label>Dispositif</label>
+    <select id="disp">
+        <option value="PSE">PSE</option>
+        <option value="Pompe">Pompe</option>
+    </select>
+
+    <label>Quantité (g)</label>
+    <input type="number" id="dose" step="0.1" min="0">
+</div>
+
+<div id="result"></div>
+
+<script src="./data.js"></script>
+
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+
+    if (!window.ATB_DATA) {
+        console.error("ATB_DATA introuvable");
+        return;
+    }
+
+    const molSelect = document.getElementById("mol");
+
+    const uniqueMols = [...new Set(ATB_DATA.map(x => x.Mol))];
+    uniqueMols.forEach(m => {
+        const opt = document.createElement("option");
+        opt.value = m;
+        opt.textContent = m;
+        molSelect.appendChild(opt);
+    });
+
+    function updateResult() {
+        const mol = molSelect.value;
+        const solv = document.getElementById("solv").value;
+        const disp = document.getElementById("disp").value;
+        const dose = parseFloat(document.getElementById("dose").value);
+        const resultDiv = document.getElementById("result");
+
+        if (isNaN(dose)) {
+            resultDiv.style.display = "none";
+            return;
+        }
+
+        const match = ATB_DATA.find(x =>
+            x.Mol === mol &&
+            x.Solv === solv &&
+            x.Disp === disp &&
+            dose >= x.Min &&
+            dose <= x.Max
+        );
+
+        resultDiv.style.display = "block";
+
+        if (!match) {
+            resultDiv.innerHTML = "<b>Aucune donnée trouvée pour cette configuration.</b>";
+            return;
+        }
+
+        resultDiv.innerHTML = `
+            <b>Dilution :</b> ${match.Dil}<br>
+            <b>Concentration :</b> ${match.Conc}<br>
+            <b>Stabilité :</b> ${match.Stab} h<br>
+            <b>Commentaire :</b> ${match.Com || "—"}
+        `;
+    }
+
+    document.querySelectorAll("select, input").forEach(el => {
+        el.addEventListener("input", updateResult);
+        el.addEventListener("change", updateResult);
+    });
+
+    updateResult();
+
+    // Service Worker
+    if ("serviceWorker" in navigator) {
+        navigator.serviceWorker.register("./service-worker.js")
+            .then(() => console.log("SW OK"))
+            .catch(err => console.error("SW error", err));
+    }
+
+});
+</script>
+
+</body>
+</html>
