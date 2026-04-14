@@ -84,14 +84,10 @@
 <script>
 document.addEventListener("DOMContentLoaded", () => {
 
-    if (!window.ATB_DATA) {
-        console.error("ATB_DATA introuvable");
-        return;
-    }
-
     const molSelect = document.getElementById("mol");
 
     const uniqueMols = [...new Set(ATB_DATA.map(x => x.Mol))];
+
     uniqueMols.forEach(m => {
         const opt = document.createElement("option");
         opt.value = m;
@@ -122,7 +118,7 @@ document.addEventListener("DOMContentLoaded", () => {
         resultDiv.style.display = "block";
 
         if (!match) {
-            resultDiv.innerHTML = "<b>Aucune donnée trouvée pour cette configuration.</b>";
+            resultDiv.innerHTML = "<b>Aucune donnée trouvée</b>";
             return;
         }
 
@@ -136,20 +132,11 @@ document.addEventListener("DOMContentLoaded", () => {
 
     document.querySelectorAll("select, input").forEach(el => {
         el.addEventListener("input", updateResult);
-        el.addEventListener("change", updateResult);
     });
 
     updateResult();
 
-    // Service Worker
-    if ("serviceWorker" in navigator) {
-        navigator.serviceWorker.register("./service-worker.js")
-            .then(() => console.log("SW OK"))
-            .catch(err => console.error("SW error", err));
-    }
-
 });
 </script>
-
 </body>
 </html>
